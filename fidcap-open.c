@@ -12,5 +12,5 @@ int main(int argc, char** argv) {
     sleep(10);
   }
 
-  exit(0);
+  return 0;
 }
