@@ -24,14 +24,7 @@
 #define D1_FRAME_SIZE   D1_WIDTH * D1_HEIGHT
 #define NUM_CAPTURE_BUFS 3
 
-#define DRIVER_WORKS 0 // driver doesn't set registers correctly still
-#if DRIVER_WORKS
-  void ConfigureAllRegisters() {
-    return;
-  }
-#else
-  #include "configure_registers.c"
-#endif
+#include "configure_registers.c"
 
 //! Describes a capture frame buffer
 struct sCaptureBuffer {
@@ -54,8 +47,6 @@ public:
 
   //! Returns the most recently capture memory pointer
   void * GetDataPtr(){ return m_CapBufs[m_V4l2Buf.index].start; }
-
-  double GetDataStartTime();
 
 private:
   int                         m_FD;    //!< The FSR file descriptor
@@ -86,7 +77,9 @@ FSR::FSR()
 FSR::~FSR()
 {
   if(m_FD)
+  {
     Stop();
+  }
 }
 
 
@@ -331,111 +324,8 @@ void FSR::ReleaseBlock()
 }
 
 
-/**
-*  
-*  @brief Searches through the data for the fsr_sensor pulse start. Then determines the time
-*       based off the fsr_sensor pulse counter.
-*
-*  @return Returns the data start time (0->10.0 seconds).
-*
-*/
-double FSR::GetDataStartTime()
-{
-#if 0
-
-  // See if we still have a valid time
-  if(m_FSRSensorStartTime != -1) return m_FSRSensorStartTime;
-
-  // First we need to find the first fsr_sensor pulse
-  unsigned short *FSRSensorData = (unsigned short *)m_CapBufs[m_V4l2Buf.index].start;
-
-  // Search through 12 chirps worth of data looking for the start
-  int MaxTries = 2048*12;
-  while(MaxTries--)
-  {
-    if(*FSRSensorData & 0x8000) break;
-    FSRSensorData++;
-  }
-
-  if(MaxTries == 0)
-  {
-    g_HealthInfo.m_StatusFlags0 |= STATF0_INVALID_PULSE;
-    printf("FSR: Could not find a fsr_sensor pulse start\n" );
-    return 0;
-  }
-
-  g_HealthInfo.m_StatusFlags0 &= ~STATF0_INVALID_PULSE;
-
-
-  // Now we need to compute the fsr_sensor pulse time by using two samples
-  unsigned int FullCount = ((FSRSensorData[1] & 0x1FFF) << 15) | (FSRSensorData[0] & 0x7FFF);
-  m_FSRSensorStartTime = FullCount / 25e6;
-
-  static double OldTime = 0;
-  bool DataDropped = false;
-  static double DataDroppedTime;
-
-  if(g_OperatingStates.m_DataRate == 4)
-  {
-    if(m_FSRSensorStartTime - OldTime - .250 > .001)
-    {
-      // See if we wrapped.
-      if(m_FSRSensorStartTime > OldTime)
-      {
-        printf("FSR: FOUND GAP in 4X First %lf Prev %lf\n", m_FSRSensorStartTime, OldTime);
-        g_HealthInfo.m_StatusFlags0 |= STATF0_DATA_DROP_ERROR;
-        DataDropped = true;
-        DataDroppedTime = m_FSRSensorStartTime;
-      }
-    }
-  }
-  else if(g_OperatingStates.m_DataRate == 2)
-  {
-    if(m_FSRSensorStartTime - OldTime - .50 > .001)
-    {
-      // See if we wrapped.
-      if(m_FSRSensorStartTime > OldTime)
-      {
-        printf("FSR: FOUND GAP in 2X First %lf Prev %lf\n",m_FSRSensorStartTime, OldTime);
-        g_HealthInfo.m_StatusFlags0 |= STATF0_DATA_DROP_ERROR;
-        DataDropped = true;
-        DataDroppedTime = m_FSRSensorStartTime;
-      }
-    }
-  }
-  else if(g_OperatingStates.m_DataRate == 1)
-  {
-    if(m_FSRSensorStartTime - OldTime - 1.0 > .001)
-    {
-      // See if we wrapped.
-      if(m_FSRSensorStartTime > OldTime)
-      {
-        printf("FSR: FOUND GAP in 1X First %lf Prev %lf\n",m_FSRSensorStartTime, OldTime);
-        g_HealthInfo.m_StatusFlags0 |= STATF0_DATA_DROP_ERROR;
-        DataDropped = true;
-        DataDroppedTime = m_FSRSensorStartTime;
-      }
-    }
-  }
-
-  // Now remove the status flag is we don't have a data drop and time has been longer than a second
-/*  if((DataDropped == false) && (g_HealthInfo.m_StatusFlags0 & STATF0_DATA_DROP_ERROR))
-  {
-    if(m_FSRSensorStartTime - DataDropped > 1)
-      g_HealthInfo.m_StatusFlags0 &= ~STATF0_DATA_DROP_ERROR;
-  }
-*/
-  OldTime = m_FSRSensorStartTime;
-
-  return m_FSRSensorStartTime;
-#endif
-  return 0;
-}
-
 // Simple test file for FSR
-
-
-double GetTimeSecs()
+double microtime()
 {
         static double InitTime = 0;
         struct timeval tp;
@@ -450,7 +340,7 @@ double GetTimeSecs()
 int main(int argc, char *argv[])
 {
   FSR fsr;
-  double LastCaptureTime = GetTimeSecs();
+  double t_latest = microtime();
   int j;
   
   if(fsr.Init())
@@ -473,8 +363,8 @@ int main(int argc, char *argv[])
     printf("FSR: Captured.\n");
     
     //system("node ccdc-reg.js > during_capture.txt");
-    printf("Got a block of data at %p Elapsed Time = %lf\n",fsr.GetDataPtr(),GetTimeSecs() - LastCaptureTime);
-    LastCaptureTime = GetTimeSecs();
+    printf("Got a block of data at %p Elapsed Time = %lf\n",fsr.GetDataPtr(),microtime() - t_latest);
+    t_latest = microtime();
     
     // Now search through the first 10,000 values looking for a start of an fsr block. 
     // We should find it every 2048 samples since fsr runs at 1X rates
