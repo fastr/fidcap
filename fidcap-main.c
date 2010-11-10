@@ -34,9 +34,7 @@ int main(int argc, char *argv[])
   //system("node ccdc-reg.js > before_capture.txt");
   for(i = 0; i < 500; i++)
   {
-    //char* fsr_raw[FSR_DATA_SIZE];
     char* fsr_raw;
-    //char* fsr_raw_p = 
     fsr_buffer_get(&fsr_raw);
 
     printf("Got a block of data at %p Elapsed Time = %lf\n",fsr_raw, microtime() - t_latest);

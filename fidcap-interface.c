@@ -22,6 +22,7 @@
 #define D1_HEIGHT       16000 
 #define D1_FRAME_SIZE   D1_WIDTH * D1_HEIGHT
 #define NUM_CAPTURE_BUFS 3
+#define FSR_DATA_SIZE 4096000 // (128 cols * 16000 rows * 2 bytes)
 
 #include "fsr172x.h"
 int fsr_dqbuf();
@@ -36,6 +37,7 @@ struct sCaptureBuffer {
 int captureFd = 0;
 struct sCaptureBuffer* m_CapBufs; //!< Holds the capture buffer memory maps to the CCDC memory regions
 struct v4l2_buffer m_V4l2Buf;  //!< Contains returned data from a capture frame indicating which memory is aquired
+unsigned char raw_data_buffer[FSR_DATA_SIZE];
 
 
 /**
@@ -200,7 +202,9 @@ int fsr_buffer_get(void** buffer)
   {
     return -1;
   }
-  *buffer = m_CapBufs[m_V4l2Buf.index].start;
+  memcpy((void*)raw_data_buffer, m_CapBufs[m_V4l2Buf.index].start, FSR_DATA_SIZE);
+  //*buffer = m_CapBufs[m_V4l2Buf.index].start;
+  *buffer = raw_data_buffer;
   return 0;
 }
 
