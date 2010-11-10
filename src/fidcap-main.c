@@ -1,6 +1,9 @@
 #include <stdlib.h> // NULL
 #include <stdio.h> // printf
 #include <sys/time.h> // gettimeofday
+#include <fcntl.h> // O_CREATE, etc
+#include <unistd.h> // write, close
+#include <sys/stat.h> // S_IRUSR, etc
 
 #include "fidcap.h"
 
@@ -16,6 +19,18 @@ double microtime()
   }
 
   return ((double)tp.tv_sec+(1.e-6)*tp.tv_usec) - InitTime;
+}
+
+int log_append(void* data, unsigned int size, char* path)
+{
+  int fd;
+
+  //first group are flags, and second group are permissions. see man pages for details.
+  fd = open(path, O_RDWR | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  write(fd, data, size);
+  close(fd);
+
+  return 0;
 }
 
 int main(int argc, char *argv[])
@@ -36,6 +51,8 @@ int main(int argc, char *argv[])
   {
     char* fsr_raw;
     fsr_buffer_get(&fsr_raw);
+
+    log_append(fsr_raw, FSR_DATA_SIZE, "./fsr.raw12");
 
     printf("Got a block of data at %p Elapsed Time = %lf\n",fsr_raw, microtime() - t_latest);
     t_latest = microtime();
