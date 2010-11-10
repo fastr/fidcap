@@ -5,9 +5,10 @@
 #include <fcntl.h> // open
 #include <sys/mman.h> // mmap
 
-#define ISP_BASE_REG_ADDR    ((void*)0x480BC000) // Must be mapped to a page boundry so we map starting from the ISP base
-#define CCDC_BASE_REG_OFF    0x00000600
-#define CCDC_REG_LENGTH      0x00000A00   // All the way up to the last register in FSR
+// Must be mmap'ed to a page boundry use this rather than starting at CCDC_BASE_REG
+#define ISP_BASE_REG_ADDR ((void*) 0x480BC000)
+#define CCDC_BASE_REG_OFF 0x00000600
+#define CCDC_REG_LENGTH   0x00000A00
 
 // Contains the ISP registers offsets from the base register address
 #define ISP_CTRL        (0x00000040)
@@ -25,7 +26,7 @@
 #define CCDC_PIX_LINES      (CCDC_BASE_REG_OFF+0x00000010)
 #define CCDC_HORZ_INFO      (CCDC_BASE_REG_OFF+0x00000014) 
 #define CCDC_VERT_START      (CCDC_BASE_REG_OFF+0x00000018)
-// #define CCDC_VERT_LINES      (CCDC_BASE_REG_OFF+0x0000001C)
+#define CCDC_VERT_LINES      (CCDC_BASE_REG_OFF+0x0000001C)
 // #define CCDC_CULLING        (CCDC_BASE_REG_OFF+0x00000020)
 #define CCDC_HSIZE_OFF      (CCDC_BASE_REG_OFF+0x00000024)
 // #define CCDC_SDOFST        (CCDC_BASE_REG_OFF+0x00000028) 
@@ -49,8 +50,8 @@
 void fsr_set_registers()
 {
   int fd;
-  unsigned char *src;
-  unsigned int *word_register;
+  unsigned char* src;
+  unsigned int* word_register;
   unsigned int register_value;
 
   // open memory device
@@ -60,100 +61,84 @@ void fsr_set_registers()
     exit(1);
   }
 
-  src = (unsigned char*)mmap((unsigned char *)ISP_BASE_REG_ADDR, CCDC_REG_LENGTH, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_SHARED, fd, (off_t)ISP_BASE_REG_ADDR);
+  src = (unsigned char*) mmap(
+    (unsigned char*) ISP_BASE_REG_ADDR,
+    CCDC_REG_LENGTH,
+    PROT_READ | PROT_WRITE | PROT_EXEC, 
+    MAP_SHARED, 
+    fd, 
+    (off_t) ISP_BASE_REG_ADDR
+  );
   
-  if (src != ISP_BASE_REG_ADDR)
+  if (ISP_BASE_REG_ADDR != src)
   {
-    printf("\n \t Failure to map memory error equals %s\n", strerror(errno));
-    exit(1);
+    perror("mmap isp_base_reg");
+    exit(EXIT_FAILURE);
   }
 
 
-  /////////////////////////////////////////////
   // ISP_CTRL  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+ISP_CTRL);
   register_value = 0x00C12900;
   *word_register = register_value;
 
 
-  /////////////////////////////////////////////
   // CCDC_SYNC_MODE  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_SYN_MODE);
   register_value = 0x00030401;
   *word_register = register_value;
 
 
-  /////////////////////////////////////////////
   // CCDC_PIX_LINES  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_PIX_LINES);
   register_value = 0x00807D01;
   *word_register = register_value;
 
 
-  /////////////////////////////////////////////
   // CCDC_HORZ_INFO  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_HORZ_INFO);
   register_value = 0x0001007F;
   *word_register = register_value;
 
 
-  /////////////////////////////////////////////
   // CCDC_VERT_START  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_VERT_START);
   register_value = 0x00010001;
   *word_register = register_value;
 
 
-  /////////////////////////////////////////////
   // CCDC_HSIZE_OFF  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_HSIZE_OFF);
   register_value = 0x00000100;
   *word_register = register_value;
   
 
-  /////////////////////////////////////////////
   // CCDC_VDINT  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_VDINT);
   register_value = 0x00011F41;
   *word_register = register_value;
   
 
-  /////////////////////////////////////////////
   // CCDC_FMTCFG  
-  /////////////////////////////////////////////
   word_register = (unsigned int *)(src+CCDC_FMTCFG);
   register_value = 0x00000000;
   *word_register = register_value;
   
 
-  // Possibly needed for the DaVinci-based FSR 
-
-  /////////////////////////////////////////////
   // CCDC_VERT_LINES  
-  /////////////////////////////////////////////
-  // word_register = (unsigned int *)(src+CCDC_VERT_LINES);
-  // register_value = 0x000037FF;
-  // *word_register = register_value;
+  word_register = (unsigned int *)(src+CCDC_VERT_LINES);
+  register_value = 0x000037FF;
+  *word_register = register_value;
 
+  // Previously used for the DaVinci-based FSR 
 
-  /////////////////////////////////////////////
   // FMT_HORZ  
-  /////////////////////////////////////////////
   // word_register = (unsigned int *)(src+FMT_HORZ);
   // register_value = 0x00010080;
   // *word_register = register_value;
 
 
-  /////////////////////////////////////////////
   // FMT_VERT  
-  /////////////////////////////////////////////
   // word_register = (unsigned int *)(src+FMT_VERT);
   // register_value = 0x00011E80;
   // *word_register = register_value;

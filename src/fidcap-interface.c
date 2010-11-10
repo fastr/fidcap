@@ -7,7 +7,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
-//#include <arpa/inet.h>
 
 /* Device parameters */
 #define V4L2_DEVICE     "/dev/video0"
@@ -29,14 +28,14 @@ int fsr_dqbuf();
 
 //! Describes a capture frame buffer
 struct sCaptureBuffer {
-  void         *start;        //!< Starting memory location of buffer
-  unsigned long offset;        //!< Offset into buffer to first valid data
-  size_t        length;        //!< Length of data
+  void         *start;  //!< Starting memory location of buffer
+  unsigned long offset; //!< Offset into buffer to first valid data
+  size_t        length; //!< Length of data
 };
 
 int captureFd = 0;
 struct sCaptureBuffer* m_CapBufs; //!< Holds the capture buffer memory maps to the CCDC memory regions
-struct v4l2_buffer m_V4l2Buf;  //!< Contains returned data from a capture frame indicating which memory is aquired
+struct v4l2_buffer m_V4l2Buf;     //!< Contains returned data from a capture frame indicating which memory is aquired
 unsigned char raw_data_buffer[FSR_DATA_SIZE];
 
 
@@ -100,7 +99,7 @@ int fsr_init()
   fmt.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   //fmt.fmt.pix.width       = D1_WIDTH;
   //fmt.fmt.pix.height      = D1_HEIGHT;
-  fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_FSR172X; // ISP driver associates YUYV with SYNC mode
+  fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_FSR172X;
   fmt.fmt.pix.field       = V4L2_FIELD_NONE;    
 
   // Set the video capture format 
@@ -202,9 +201,9 @@ int fsr_buffer_get(void** buffer)
   {
     return -1;
   }
-  memcpy((void*)raw_data_buffer, m_CapBufs[m_V4l2Buf.index].start, FSR_DATA_SIZE);
-  //*buffer = m_CapBufs[m_V4l2Buf.index].start;
+  memcpy((void*) raw_data_buffer, m_CapBufs[m_V4l2Buf.index].start, FSR_DATA_SIZE);
   *buffer = raw_data_buffer;
+  //*buffer = m_CapBufs[m_V4l2Buf.index].start;
   return 0;
 }
 
