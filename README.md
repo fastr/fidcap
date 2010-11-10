@@ -27,6 +27,11 @@ BUGs
 
 During data acquisition the rest of the system is entirely unusable.
 
+Notice that a simple loop in another process which should take 100ms takes 1 second each time capture is happening.
+
+    make
+    ./loop-100ms
+
 `fsr_buffer_get` 
 calls `fsr_dqbuf` 
 which calls `ioctl(fsr_fd, VIDIOC_DQBUF, &v4l2_buf)` 
