@@ -55,7 +55,7 @@ private:
     return;
   }
 #else
-  #include <configure_registers.c>
+  #include "configure_registers.c"
 #endif
 
 
@@ -99,11 +99,8 @@ int FSR::Init()
   struct v4l2_format          fmt;
   struct v4l2_buffer          buf;
   enum v4l2_buf_type          type;
-  v4l2_std_id                 std;  
   unsigned int                numCapBufs;
   
-  unsigned char         value[4];
-
   printf("FSR: Initializing CCD controller.\n");
 
   /* Open video capture device */
