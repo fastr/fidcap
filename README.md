@@ -15,7 +15,12 @@ The `fsr172x` kernel module is not complete, hence `fidcap` `mmap`s some registe
 
 The RAW12 data is *mostly* captured (about 99.4% of it) and written out to `fsr.raw12`.
 
+The best way to see the problem is to redirect the logging to memory:
+
     ln -s /dev/shm/fsr.raw12 ./
+    ./fidcap
+    analyze /dev/shm/fsr.raw12
+    rm /dev/shm/fsr.raw12 # because fidcap appends forever
 
 BUGs
 ---
