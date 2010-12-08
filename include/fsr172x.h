@@ -1,5 +1,3 @@
-// This is also in the fsr branch of the kernel
-#define V4L2_PIX_FMT_FSR172X  v4l2_fourcc('F', 'S', 'R', '0') /* 12bit raw fsr172x */
-
-// Set registers on the (OMAP3530-based) fsr172x to capture RAW12 data
-void fsr_set_registers();
+// This is in the fsr172x patches of the kernel
+// linux-2.6/include/linux/videodev2.h:
+#define V4L2_PIX_FMT_SGRBG12 v4l2_fourcc('B', 'A', '1', '2') /* 12  GRGR.. BGBG.. */

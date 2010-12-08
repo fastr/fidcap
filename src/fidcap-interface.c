@@ -9,7 +9,7 @@
 #include <linux/videodev2.h>
 
 /* Device parameters */
-#define V4L2_DEVICE     "/dev/video0"
+#define V4L2_DEVICE     "/dev/video2"
 
 /* Macro for clearing structures */
 #define CLEAR(x) memset (&(x), 0, sizeof (x))
@@ -17,10 +17,7 @@
 // Configures the height and width of the frame.
 // NOTE: Changing values here alone will not help, you also 
 // need to change values in the driver since its generated VD and HD signals
-#define D1_WIDTH        128 
-#define D1_HEIGHT       16000 
-#define D1_FRAME_SIZE   D1_WIDTH * D1_HEIGHT
-#define NUM_CAPTURE_BUFS 3
+#define V4L_BUFFERS_DEFAULT 8
 
 #include "fsr172x.h"
 #include "fidcap.h"
@@ -37,6 +34,8 @@ int fsr_fd = 0;
 struct fsr_v4l2_buffer* fsr_v4l2_buf; //!< Holds the capture buffer memory maps to the CCDC memory regions
 struct v4l2_buffer v4l2_buf;     //!< Contains returned data from a capture frame indicating which memory is aquired
 unsigned char raw_data_buffer[FSR_DATA_SIZE];
+enum v4l2_memory memtype = V4L2_MEMORY_MMAP;
+enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 
 /**
@@ -47,30 +46,29 @@ unsigned char raw_data_buffer[FSR_DATA_SIZE];
 */
 int fsr_init()
 {
-  struct v4l2_requestbuffers  req;
+  struct v4l2_requestbuffers  rb;
   struct v4l2_capability      cap;
   struct v4l2_format          fmt;
   struct v4l2_buffer          buf;
 
-  enum v4l2_buf_type          type;
-
   unsigned int                fsr_num_bufs;
 
-  fsr_fd = 0;
+  CLEAR(cap);
+
   fsr_v4l2_buf = NULL;
   
   printf("FSR: Initializing CCD controller.\n");
 
   /* Open video capture device */
-  fsr_fd = open(V4L2_DEVICE, O_RDWR | O_NONBLOCK, 0);
+  fsr_fd = open(V4L2_DEVICE, O_RDWR | O_NONBLOCK);
 
-  if (fsr_fd == -1) {
+  if (fsr_fd < -1) {
     printf("FSR: Cannot open.\n");
     return 1;
   }
 
 
-  printf("FSR: Capture device opened. CaptureWidth = %d, CaptureHeight = %d\n", D1_WIDTH, D1_HEIGHT);
+  printf("FSR: Capture device opened.\n");
 
   // Query for capture device capabilities 
   if (ioctl(fsr_fd, VIDIOC_QUERYCAP, &cap) == -1) {
@@ -96,11 +94,11 @@ int fsr_init()
   
   // Set the video capture image format
   CLEAR(fmt);
-  fmt.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  //fmt.fmt.pix.width       = D1_WIDTH;
-  //fmt.fmt.pix.height      = D1_HEIGHT;
-  fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_FSR172X;
-  fmt.fmt.pix.field       = V4L2_FIELD_NONE;    
+  fmt.type                = type;
+  fmt.fmt.pix.width       = 2048;
+  fmt.fmt.pix.height      = 128;
+  fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SGRBG12;
+  fmt.fmt.pix.field       = V4L2_FIELD_ANY;
 
   // Set the video capture format 
   if (ioctl(fsr_fd, VIDIOC_S_FMT, &fmt) == -1) {
@@ -113,25 +111,25 @@ int fsr_init()
 
   //  VIDIOC_S_CROP is not required since we are not using the smoothing function 
 
-  CLEAR(req);
-  req.count  = NUM_CAPTURE_BUFS;
-  req.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  req.memory = V4L2_MEMORY_MMAP;
+  CLEAR(rb);
+  rb.count  = V4L_BUFFERS_DEFAULT;
+  rb.type   = type;
+  rb.memory = memtype;
 
   // Allocate buffers in the capture device driver 
-  if (ioctl(fsr_fd, VIDIOC_REQBUFS, &req) == -1) {
+  if (ioctl(fsr_fd, VIDIOC_REQBUFS, &rb) == -1) {
     printf("FSR: VIDIOC_REQBUFS failed on %s (%s)\n", V4L2_DEVICE, strerror(errno));
     return 1;
   }
 
-  printf("FSR: %d capture buffers were successfully allocated.\n", req.count);
+  printf("FSR: %d capture buffers were successfully allocated.\n", rb.count);
 
-  if (req.count < NUM_CAPTURE_BUFS) {
+  if (rb.count < V4L_BUFFERS_DEFAULT) {
     printf("FSR: Insufficient buffer memory on %s\n", V4L2_DEVICE);
     return 1;
   }
 
-  fsr_v4l2_buf = (struct fsr_v4l2_buffer *)calloc(req.count, sizeof(*fsr_v4l2_buf));
+  fsr_v4l2_buf = (struct fsr_v4l2_buffer *)calloc(rb.count, sizeof(*fsr_v4l2_buf));
 
   if (!fsr_v4l2_buf) {
     printf("FSR: Failed to allocate memory for capture buffer structs.\n");
@@ -139,16 +137,12 @@ int fsr_init()
   }
 
 
-  // Call a single function to configure all the register settings for the ISP and CCDC needed
-  fsr_set_registers();
-
-
   // Map the allocated buffers to user space 
-  for (fsr_num_bufs = 0; fsr_num_bufs < req.count; fsr_num_bufs++) 
+  for (fsr_num_bufs = 0; fsr_num_bufs < rb.count; fsr_num_bufs++) 
   {
     CLEAR(buf);
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_MMAP;
+    buf.type = type;
+    buf.memory = memtype;
     buf.index = fsr_num_bufs;
 
 
@@ -241,7 +235,7 @@ int fsr_dqbuf()
   // Get a frame buffer with captured data
   CLEAR(v4l2_buf);
   v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  v4l2_buf.memory = V4L2_MEMORY_MMAP;
+  v4l2_buf.memory = memtype;
 
   while(1)
   {
@@ -267,13 +261,11 @@ int fsr_dqbuf()
 */
 void fsr_cleanup()
 {
-  enum v4l2_buf_type type;
   unsigned int       i;
 
   if(fsr_fd == 0) return;
 
   /* Shut off the video capture */
-  type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   if (ioctl(fsr_fd, VIDIOC_STREAMOFF, &type) == -1) {
     printf("FSR: VIDIOC_STREAMOFF failed (%s)\n", strerror(errno));
   }
@@ -284,7 +276,7 @@ void fsr_cleanup()
 
   if(fsr_v4l2_buf == NULL) return;
 
-  for (i = 0; i < NUM_CAPTURE_BUFS; i++) {
+  for (i = 0; i < V4L_BUFFERS_DEFAULT; i++) {
     if (munmap(fsr_v4l2_buf[i].start, fsr_v4l2_buf[i].length) == -1) {
       printf("FSR: Failed to unmap capture buffer %d\n", i);
     }
@@ -292,5 +284,5 @@ void fsr_cleanup()
 
   free(fsr_v4l2_buf);
 
-  printf("FSR: Capture device closed and %d capture buffers freed. \n", NUM_CAPTURE_BUFS);
+  printf("FSR: Capture device closed and %d capture buffers freed. \n", V4L_BUFFERS_DEFAULT);
 }

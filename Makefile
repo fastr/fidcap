@@ -4,9 +4,8 @@ CC += $(COPTS)
 all:
 	. ./overo.env
 	mkdir -p ./bin ./obj
-	${CC} -c src/fsr-set-registers.c -o obj/fsr-set-registers.o
 	${CC} -c src/fidcap-interface.c -o obj/fidcap-interface.o
-	${CC} -o bin/fidcap src/fidcap-main.c obj/fsr-set-registers.o obj/fidcap-interface.o
+	${CC} -o bin/fidcap src/fidcap-main.c obj/fidcap-interface.o
 	${CC} -o bin/loop-10ms src/loop-100ms.c
 
 archive:
