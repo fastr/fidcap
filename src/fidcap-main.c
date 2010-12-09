@@ -46,7 +46,6 @@ int main(int argc, char *argv[])
   printf("FSR: Init complete.\n");
   
   // Capture `i` blocks of data
-  //system("node ccdc-reg.js > before_capture.txt");
   for(i = 0; i < 500; i++)
   {
     char* fsr_raw;
